@@ -335,6 +335,7 @@ let main = async () => {
     let id = key.id.substring(4);
     if (id !== "") {
       key.addEventListener("click", () => {
+        navigator.vibrate(200);
         handle_key(id);
       });
     }
