@@ -18,6 +18,7 @@ let main = async () => {
 
   const success_color = [34, 187, 127];
   const fail_color = [187, 34, 34];
+  const keypress_color = [127, 127, 127];
 
   const answers = data.record.answers;
   const allowed = data.record.allowed;
@@ -38,6 +39,7 @@ let main = async () => {
   let known_hits = ["", "", "", "", ""];
 
   let game_running = false;
+  let transition_running = false;
 
   let parse_color = (color) => {
     return color
@@ -49,6 +51,7 @@ let main = async () => {
   };
 
   let transition_color = (element, color) => {
+    transition_running = true;
     let original_color = parse_color(element.style.backgroundColor);
     let interp_max = 25;
     let interp_index = 0;
@@ -58,6 +61,7 @@ let main = async () => {
       interp_index = interp_index + 1;
       if (interp_index === interp_max) {
         element.style.backgroundColor = `rgb(${interp_color})`;
+        transition_running = false;
         return;
       }
       let color = original_color.map((value, index) => {
@@ -73,6 +77,7 @@ let main = async () => {
   };
 
   let flash_color = (element, color, original_color, frames) => {
+    transition_running = true;
     let interp_max = frames;
     let interp_index = frames;
     let interp_color = color;
@@ -82,6 +87,7 @@ let main = async () => {
       if (interp_index === 0) {
         interp_color = original_color.join(",");
         element.style.backgroundColor = `rgb(${original_color})`;
+        transition_running = false;
         return;
       }
       let color = original_color.map((value, index) => {
@@ -102,11 +108,14 @@ let main = async () => {
     known_hits = ["", "", "", "", ""];
     let row = 5;
     let col = 4;
-    let key = 29;
+    let key = keys.length - 1;
     let step = () => {
       if (key >= 0) {
         let keyboard_key = keys[key];
         key--;
+        keyboard_key.classList.remove("key-hit");
+        keyboard_key.classList.remove("key-partial");
+        keyboard_key.classList.remove("key-miss");
         if (!keyboard_key.classList.contains("key-blank")) {
           transition_color(keyboard_key, key_base_color);
         } else {
@@ -253,6 +262,16 @@ let main = async () => {
     if (!game_running) {
       return;
     }
+    let keyboard_key = document.getElementById("key-" + key);
+    let current_color = key_base_color;
+    if (keyboard_key.classList.contains("key-hit")) {
+      current_color = key_hit_color;
+    } else if (keyboard_key.classList.contains("key-partial")) {
+      current_color = key_partial_color;
+    } else if (keyboard_key.classList.contains("key-miss")) {
+      current_color = key_miss_color;
+    }
+    flash_color(keyboard_key, keypress_color, current_color, 25);
     if (key === "Backspace") {
       word_index--;
       if (word_index <= 0) {
@@ -317,13 +336,14 @@ let main = async () => {
               sum++;
             }
           }
-          if (valid) {
-            if (sum <= known_letters[key].misses) {
+          if (sum <= known_letters[key].misses) {
+            if (valid) {
               hl.style.backgroundColor = `rgb(${partial_color})`;
             } else {
-              console.log(known_letters[key].misses);
               hl.style.backgroundColor = `rgb(${miss_color})`;
             }
+          } else {
+            hl.style.backgroundColor = `rgb(${miss_color})`;
           }
         }
       }
