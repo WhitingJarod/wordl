@@ -214,7 +214,7 @@ let main = async () => {
           known_letters[guess[i]] = {
             hits: [false, false, false, false, false],
             partials: [false, false, false, false, false],
-            misses: 5,
+            exists: -1,
           };
         }
         if (result[i] === "1") {
@@ -236,13 +236,15 @@ let main = async () => {
           keyboard_key.classList.add("key-hit");
           transition_color(keyboard_key, key_hit_color);
         } else {
-          let allowed = 0;
-          for (let j = 0; j < 5; j++) {
-            if (guess[j] === guess[i] && result[j] !== "0") {
-              allowed++;
+          if (known_letters[guess[i]].exists === -1) {
+            let allowed = 0;
+            for (let j = 0; j < 5; j++) {
+              if (guess[j] === guess[i] && result[j] !== "0") {
+                allowed++;
+              }
             }
+            known_letters[guess[i]].exists = allowed;
           }
-          known_letters[guess[i]].misses = allowed;
           tile.classList.add("miss");
           transition_color(tile, miss_color);
           if (
@@ -263,6 +265,7 @@ let main = async () => {
       return;
     }
     let keyboard_key = document.getElementById("key-" + key);
+    if (!keyboard_key) return;
     let current_color = key_base_color;
     if (keyboard_key.classList.contains("key-hit")) {
       current_color = key_hit_color;
@@ -272,7 +275,7 @@ let main = async () => {
       current_color = key_miss_color;
     }
     flash_color(keyboard_key, keypress_color, current_color, 25);
-    if (key === "Backspace") {
+    if (key === "backspace") {
       word_index--;
       if (word_index <= 0) {
         word_index = 0;
@@ -281,7 +284,7 @@ let main = async () => {
       tile.children[0].textContent = "";
       tile.children[1].style.backgroundColor = "transparent";
       tile.classList = ["tile"];
-    } else if (key === "Enter") {
+    } else if (key === "enter") {
       if (word_index === 5) {
         if (submit_guess()) {
           for (let i = 0; i < 5; i++) {
@@ -307,42 +310,35 @@ let main = async () => {
         return;
       }
       let tile = rows[guess_index].children[word_index];
+
       tile.children[0].textContent = key;
+
       if (known_letters[key] !== undefined) {
         let hl = tile.children[1];
         if (known_letters[key].hits[word_index]) {
+          // Hits. Easy.
           hl.style.backgroundColor = `rgb(${hit_color})`;
         } else if (
           (known_hits[word_index].length > 0 &&
             known_hits[word_index] !== key) ||
           known_letters[key].partials[word_index]
         ) {
+          // Misses because we know what this position is supposed to contain
+          // and this isn't it, or because this position was a partial and
+          // we're attempting to guess the same letter here again.
           hl.style.backgroundColor = `rgb(${miss_color})`;
         } else {
-          let valid = false;
+          let letter_count = 0;
           for (let i = 0; i < 5; i++) {
-            if (i == word_index) {
-              continue;
-            }
-            if (known_letters[key].partials[i]) {
-              valid = true;
-              break;
+            if (known_hits[i] === key) {
+              letter_count++;
             }
           }
-
-          let sum = 0;
-          for (let i = 0; i < 5; i++) {
-            if (known_letters[key].hits[i]) {
-              sum++;
-            }
-          }
-          if (sum <= known_letters[key].misses) {
-            if (valid) {
-              hl.style.backgroundColor = `rgb(${partial_color})`;
-            } else {
-              hl.style.backgroundColor = `rgb(${miss_color})`;
-            }
-          } else {
+          if (
+            known_letters[key].exists !== -1 &&
+            known_letters[key].exists <= letter_count
+          ) {
+            // Misses because we've used up all of those letters that exist.
             hl.style.backgroundColor = `rgb(${miss_color})`;
           }
         }
@@ -356,13 +352,13 @@ let main = async () => {
     if (id !== "") {
       key.addEventListener("click", () => {
         navigator.vibrate(200);
-        handle_key(id);
+        handle_key(id.toLowerCase());
       });
     }
   });
 
   document.addEventListener("keydown", (event) => {
-    handle_key(event.key);
+    handle_key(event.key.toLowerCase());
   });
 };
 main();
